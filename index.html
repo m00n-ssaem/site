@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="ko" class="h-full">
+ <head>
+  <!-- 캐시 방지 코드 -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>m00n 웹앱 모음</title>
+  
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+  <!-- ✅ 문제가 된 기존 라이브러리 대신 가장 빠르고 안정적인 QRious 라이브러리로 교체 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Fredoka', sans-serif; }
+    .glass-card {
+      backdrop-filter: blur(12px);
+      border: 1.5px solid rgba(255,255,255,0.5);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+    .card-hover:hover { transform: translateY(-6px); box-shadow: 0 12px 30px rgba(0,0,0,0.12); filter: brightness(0.95); }
+    .card-hover:hover .action-btns { opacity: 1; }
+    .modal-backdrop { background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); }
+    body { box-sizing: border-box; }
+  </style>
+ </head>
+ <body class="h-full overflow-auto" style="background: linear-gradient(135deg, #b2f5ea 0%, #38b2ac 100%);">
+  <div class="w-full min-h-full flex flex-col">
+   
+   <header class="w-full py-6 px-4 text-center text-white flex flex-col items-center" style="background: linear-gradient(90deg, #319795, #2c7a7b);">
+    <h1 id="app-title" class="text-2xl md:text-3xl font-bold drop-shadow">m00n 웹앱 모음</h1>
+    <p id="welcome-msg" class="mt-2 text-lg opacity-90 mb-4">오늘도 화이팅! 💪</p>
+    
+    <button onclick="openMainQRModal()" class="inline-flex items-center gap-2 px-5 py-2.5 bg-white/20 hover:bg-white/30 rounded-full transition text-sm font-semibold shadow-sm backdrop-blur-sm border border-white/30">
+      <i data-lucide="qr-code" style="width:18px;height:18px;"></i> 메인 화면 QR코드 보기
+    </button>
+   </header>
+   
+   <main class="flex-1 w-full max-w-5xl mx-auto px-4 py-8">
+    <div class="mb-8 flex flex-wrap gap-3 justify-center items-center">
+     <label for="subject-filter" class="text-white font-semibold">과목 선택:</label> 
+     <select id="subject-filter" class="px-4 py-2 rounded-lg border border-teal-300 bg-white text-teal-700 font-semibold focus:outline-none focus:ring-2 focus:ring-teal-400 cursor-pointer"> 
+       <option value="">전체 보기</option> 
+     </select>
+    </div>
+    
+    <div id="card-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8"></div>
+    
+    <div id="add-btn-container" class="text-center hidden">
+      <button onclick="openModal()" class="inline-flex items-center gap-2 px-6 py-3 rounded-full text-white font-semibold text-lg shadow-lg hover:scale-105 transition-transform" style="background: linear-gradient(90deg, #319795, #2c7a7b);"> 
+        <i data-lucide="plus-circle" style="width:22px;height:22px;"></i> 새로운 사이트 추가하기 
+      </button>
+    </div>
+    
+    <div id="loading" class="text-center py-12 text-white text-lg">불러오는 중...</div>
+   </main>
+
+   <footer class="w-full py-5 text-center text-teal-800 font-medium text-lg flex flex-col justify-center items-center gap-2">
+    <p id="footer-text">행복한 학교생활을 응원합니다! 💚</p>
+    <button onclick="openPinModal()" class="text-2xl hover:scale-110 transition-transform cursor-pointer mt-2" title="관리자 모드">🔒</button>
+   </footer>
+  </div>
+
+  <!-- 메인 QR코드 보기 모달 -->
+  <div id="main-qr-modal" class="fixed inset-0 modal-backdrop hidden items-center justify-center z-50 p-4">
+   <div class="glass-card rounded-2xl p-6 w-full max-w-sm text-center relative" style="background: rgba(255,255,255,0.98);">
+    <button onclick="closeMainQRModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-800 transition">
+      <i data-lucide="x" style="width:24px;height:24px;"></i>
+    </button>
+    <h2 class="text-2xl font-bold text-teal-800 mb-1">우리 반 웹앱 모음</h2>
+    <p class="text-sm text-teal-600 mb-6 font-medium">학생들에게 화면을 비춰주세요!</p>
+    
+    <div class="flex flex-col justify-center items-center mb-6 bg-white p-4 rounded-xl border border-gray-100 shadow-inner min-h-[220px]">
+      <img id="main-qrcode" class="rounded-lg shadow-sm hidden" alt="메인 QR코드">
+    </div>
+    
+    <button onclick="executeMainQRDownload()" class="inline-flex items-center justify-center gap-2 px-4 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition font-bold w-full shadow-md text-lg">
+      <i data-lucide="download" style="width:20px;height:20px;"></i> 이미지 다운로드
+    </button>
+   </div>
+  </div>
+
+  <!-- 사이트 상세 정보 모달 (개별 QR코드) -->
+  <div id="info-modal" class="fixed inset-0 modal-backdrop hidden items-center justify-center z-50 p-4">
+   <div class="glass-card rounded-2xl p-6 w-full max-w-md relative max-h-[90vh] overflow-y-auto" style="background: rgba(255,255,255,0.95);">
+    <button onclick="closeInfoModal()" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 transition">
+      <i data-lucide="x" style="width:24px;height:24px;"></i>
+    </button>
+    <div class="text-sm font-semibold text-teal-600 mb-1 uppercase" id="info-subject"></div>
+    <h2 class="text-2xl font-bold text-teal-800 mb-4" id="info-title"></h2>
+    
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-teal-700 mb-1">사이트 주소</label>
+        <div class="flex items-center gap-2">
+          <a id="info-link" href="#" target="_blank" class="flex-1 truncate text-blue-600 hover:underline bg-blue-50 px-3 py-2 rounded-lg border border-blue-100 text-sm"></a>
+          <button onclick="copyInfoUrl()" class="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 transition flex-shrink-0" title="주소 복사">
+            <i data-lucide="copy" style="width:20px;height:20px;"></i>
+          </button>
+        </div>
+      </div>
+      
+      <div class="flex flex-col items-center justify-center p-5 bg-white rounded-xl border border-teal-100 shadow-inner min-h-[220px]" id="qr-container">
+        <span class="text-sm font-bold text-teal-700 mb-3">📱 바로 접속하는 QR코드</span>
+        <img id="info-qrcode" class="mb-4 rounded-lg shadow-sm border border-gray-100 hidden" alt="사이트 QR코드">
+
+        <button onclick="downloadInfoQR()" class="inline-flex items-center gap-2 px-4 py-2 bg-teal-50 text-teal-700 border border-teal-200 rounded-lg hover:bg-teal-100 transition text-sm font-semibold w-full justify-center shadow-sm">
+          <i data-lucide="download" style="width:16px;height:16px;"></i> 이미지 파일로 다운로드
+        </button>
+      </div>
+      
+      <div id="info-poster-container" class="hidden">
+        <a id="info-poster-btn" href="#" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-100 transition text-sm font-medium w-full justify-center">
+          <i data-lucide="image" style="width:18px;height:18px;"></i> 포스터 보기 / 다운로드
+        </a>
+      </div>
+    </div>
+    
+    <div class="mt-6 text-center">
+      <a id="info-visit-btn" href="#" target="_blank" class="inline-flex items-center justify-center gap-2 w-full py-3 rounded-lg text-white font-bold hover:opacity-90 transition shadow-md" style="background: linear-gradient(90deg, #319795, #2c7a7b);">
+        <i data-lucide="external-link" style="width:18px;height:18px;"></i> 사이트 바로가기
+      </a>
+    </div>
+   </div>
+  </div>
+
+  <!-- 관리자 인증 모달 -->
+  <div id="pin-modal" class="fixed inset-0 modal-backdrop hidden items-center justify-center z-50 p-4">
+   <div class="glass-card rounded-2xl p-6 w-full max-w-xs text-center" style="background: rgba(255,255,255,0.95);">
+    <h2 class="text-xl font-bold text-teal-800 mb-4">관리자 인증</h2>
+    <input id="pin-input" type="password" placeholder="PIN 번호 입력" class="w-full px-4 py-2 mb-4 rounded-lg border border-teal-200 focus:outline-none focus:ring-2 focus:ring-teal-400 text-center text-lg tracking-widest" onkeydown="if(event.key === 'Enter') submitPin()">
+    <div class="flex gap-3">
+      <button onclick="closePinModal()" class="flex-1 py-2 rounded-lg border border-teal-300 text-teal-700 font-medium hover:bg-teal-50 transition">취소</button> 
+      <button onclick="submitPin()" class="flex-1 py-2 rounded-lg text-white font-medium hover:opacity-90 transition" style="background:#319795;">확인</button>
+    </div>
+   </div>
+  </div>
+
+  <!-- 사이트 추가/수정 모달 -->
+  <div id="modal" class="fixed inset-0 modal-backdrop hidden items-center justify-center z-50 p-4">
+   <div class="glass-card rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" style="background: rgba(255,255,255,0.95);">
+    <h2 class="text-xl font-bold text-teal-800 mb-4">새로운 사이트 추가</h2>
+    <form id="add-form" class="space-y-4">
+     <div>
+       <label for="subject-input" class="block text-sm font-medium text-teal-700 mb-1">과목 (선택 또는 직접 입력)</label> 
+       <input id="subject-input" type="text" list="subject-options" placeholder="과목 입력" class="w-full px-4 py-2 rounded-lg border border-teal-200 focus:outline-none focus:ring-2 focus:ring-teal-400">
+       <datalist id="subject-options">
+         <option value="국어"></option>
+         <option value="수학"></option>
+         <option value="영어"></option>
+         <option value="사회"></option>
+         <option value="과학"></option>
+         <option value="체육"></option>
+         <option value="음악"></option>
+         <option value="미술"></option>
+         <option value="도덕"></option>
+         <option value="창체"></option>
+         <option value="실과"></option>
+         <option value="학급방"></option>
+       </datalist>
+     </div>
+     <div>
+       <label for="name-input" class="block text-sm font-medium text-teal-700 mb-1">사이트명</label> 
+       <input id="name-input" type="text" placeholder="예: 네이버 클래스" class="w-full px-4 py-2 rounded-lg border border-teal-200 focus:outline-none focus:ring-2 focus:ring-teal-400">
+     </div>
+     <div>
+       <label for="url-input" class="block text-sm font-medium text-teal-700 mb-1">URL (필수)</label> 
+       <input id="url-input" type="text" placeholder="예: https://naver.com" class="w-full px-4 py-2 rounded-lg border border-teal-200 focus:outline-none focus:ring-2 focus:ring-teal-400">
+     </div>
+     <div>
+       <label for="poster-input" class="block text-sm font-medium text-teal-700 mb-1">포스터 링크 (선택)</label> 
+       <input id="poster-input" type="text" placeholder="예: 구글 드라이브 링크 등" class="w-full px-4 py-2 rounded-lg border border-teal-200 focus:outline-none focus:ring-2 focus:ring-teal-400">
+     </div>
+     <div id="form-error" class="text-red-500 text-sm hidden font-semibold"></div>
+     <div class="flex gap-3 pt-2">
+       <button type="button" onclick="closeModal()" class="flex-1 py-2 rounded-lg border border-teal-300 text-teal-700 font-medium hover:bg-teal-50 transition">취소</button> 
+       <button type="submit" id="submit-btn" class="flex-1 py-2 rounded-lg text-white font-bold hover:opacity-90 transition shadow-md" style="background:#319795;">추가하기</button>
+     </div>
+    </form>
+   </div>
+  </div>
+
+  <!-- 삭제 확인 모달 -->
+  <div id="delete-confirm" class="fixed inset-0 modal-backdrop hidden items-center justify-center z-50 p-4">
+   <div class="glass-card rounded-2xl p-6 w-full max-w-sm text-center" style="background: rgba(255,255,255,0.9);">
+    <p class="text-lg font-semibold text-gray-800 mb-4">이 사이트를 삭제할까요?</p>
+    <div class="flex gap-3">
+      <button onclick="cancelDelete()" class="flex-1 py-2 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50">취소</button> 
+      <button onclick="confirmDelete()" id="confirm-delete-btn" class="flex-1 py-2 rounded-lg bg-red-500 text-white font-medium hover:bg-red-600">삭제</button>
+    </div>
+   </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDsilHl95yj_pcIIrTgSGUj1OBiqhL9CAY",
+      authDomain: "site-6ce71.firebaseapp.com",
+      projectId: "site-6ce71",
+      storageBucket: "site-6ce71.firebasestorage.app",
+      messagingSenderId: "446835495885",
+      appId: "1:446835495885:web:a01d4a4c43b117cd71aa84"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const sitesCollection = collection(db, "sites");
+
+    let sites = [];
+    let deleteTarget = null;
+    let currentFilter = '';
+    let editTarget = null;
+    window.currentInfoUrl = ''; 
+    window.currentSiteName = '';
+    
+    const ADMIN_PIN = 'wndms0817';
+    let isAdmin = false;
+
+    const subjectColors = {
+      '국어': 'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%)',
+      '수학': 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
+      '영어': 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
+      '사회': 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)',
+      '과학': 'linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%)',
+      '체육': 'linear-gradient(135deg, #fef08a 0%, #fde047 100%)',
+      '음악': 'linear-gradient(135deg, #fae8ff 0%, #f5d0fe 100%)',
+      '미술': 'linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%)',
+      '도덕': 'linear-gradient(135deg, #ecfeff 0%, #cffafe 100%)',
+      '창체': 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
+      '실과': 'linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%)',
+      '학급방': 'linear-gradient(135deg, #fef4c3 0%, #fde047 100%)'
+    };
+
+    function getCardColor(subject) {
+      return subjectColors[subject] || 'linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.5) 100%)';
+    }
+
+    // ✅ 메인 QR 모달 열기 (새로운 QRious 라이브러리 적용)
+    window.openMainQRModal = function() {
+      const mainQrImg = document.getElementById('main-qrcode');
+      if (mainQrImg) mainQrImg.classList.add('hidden');
+
+      const modal = document.getElementById('main-qr-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+
+      try {
+        if (typeof QRious === 'undefined') {
+          alert('QR코드 생성기를 불러오지 못했습니다. 새로고침을 해주세요.');
+          return;
+        }
+        
+        const currentUrl = window.location.href.split('#')[0].split('?')[0];
+        const qr = new QRious({
+          value: currentUrl,
+          size: 220,
+          foreground: '#115e59',
+          background: '#ffffff'
+        });
+        
+        if (mainQrImg) {
+          mainQrImg.src = qr.toDataURL(); // 이미지 주소를 즉시 생성
+          mainQrImg.classList.remove('hidden'); // 성공 시 화면에 표시
+        }
+      } catch (error) {
+        console.error("메인 QR코드 생성 실패:", error);
+      }
+    };
+
+    window.closeMainQRModal = function() {
+      const modal = document.getElementById('main-qr-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    };
+
+    // 메인 QR 다운로드
+    window.executeMainQRDownload = function() {
+      const img = document.getElementById('main-qrcode');
+      if (!img || !img.src || !img.src.startsWith('data:image')) {
+        alert("아직 생성된 QR 코드가 없습니다.");
+        return;
+      }
+      
+      const link = document.createElement('a');
+      link.href = img.src;
+      link.download = "우리반_웹앱모음_QR.png";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+
+    // ✅ 개별 사이트 모달 열기 (새로운 QRious 라이브러리 적용)
+    window.openInfoModal = function(site) {
+      document.getElementById('info-subject').textContent = site.subject || '';
+      document.getElementById('info-title').textContent = site.site_name || '';
+      
+      const linkEl = document.getElementById('info-link');
+      linkEl.textContent = site.url || '주소 없음';
+      linkEl.href = site.url || '#';
+      document.getElementById('info-visit-btn').href = site.url || '#';
+      
+      const posterContainer = document.getElementById('info-poster-container');
+      if (site.poster_url && site.poster_url.trim() !== '') {
+        posterContainer.classList.remove('hidden');
+        document.getElementById('info-poster-btn').href = site.poster_url;
+      } else {
+        posterContainer.classList.add('hidden');
+      }
+      
+      window.currentInfoUrl = site.url || '';
+      window.currentSiteName = site.site_name || ''; 
+      
+      const qrImg = document.getElementById('info-qrcode');
+      if (qrImg) qrImg.classList.add('hidden');
+      
+      const modal = document.getElementById('info-modal');
+      modal.classList.remove('hidden'); 
+      modal.classList.add('flex');
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+
+      try {
+        if (typeof QRious === 'undefined' || !site.url) return;
+        
+        const qr = new QRious({
+          value: site.url,
+          size: 180,
+          foreground: '#0f766e',
+          background: '#ffffff'
+        });
+        
+        if (qrImg) {
+          qrImg.src = qr.toDataURL(); // 이미지 주소를 즉시 생성
+          qrImg.classList.remove('hidden'); // 성공 시 화면에 표시
+        }
+      } catch (error) {
+        console.error("웹앱 QR코드 생성 실패:", error);
+      }
+    };
+
+    window.closeInfoModal = function() {
+      const modal = document.getElementById('info-modal');
+      modal.classList.add('hidden'); 
+      modal.classList.remove('flex'); 
+    };
+
+    // 개별 사이트 QR 다운로드
+    window.downloadInfoQR = function() {
+      const img = document.getElementById('info-qrcode');
+      if (!img || !img.src || !img.src.startsWith('data:image')) {
+        alert("아직 생성된 QR 코드가 없습니다.");
+        return;
+      }
+
+      const link = document.createElement('a');
+      link.href = img.src;
+      link.download = `${window.currentSiteName || 'site'}_QR.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        window.closeModal();
+        window.closeInfoModal();
+        window.closeMainQRModal();
+        window.closePinModal();
+        window.cancelDelete();
+        currentFilter = ''; 
+        const filterEl = document.getElementById('subject-filter');
+        if(filterEl) filterEl.value = '';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        renderCards();
+      }
+    });
+
+    window.openPinModal = function() {
+      if (isAdmin) {
+        if (confirm("관리자 모드를 종료하시겠습니까?")) {
+          isAdmin = false;
+          document.getElementById('add-btn-container').classList.add('hidden');
+          renderCards(); 
+          alert("관리자 모드가 종료되었습니다.");
+        }
+        return;
+      }
+      document.getElementById('pin-input').value = '';
+      document.getElementById('pin-modal').classList.remove('hidden');
+      document.getElementById('pin-modal').classList.add('flex');
+      setTimeout(() => document.getElementById('pin-input').focus(), 100);
+    };
+
+    window.closePinModal = function() {
+      document.getElementById('pin-modal').classList.add('hidden');
+      document.getElementById('pin-modal').classList.remove('flex');
+    };
+
+    window.submitPin = function() {
+      const input = document.getElementById('pin-input').value;
+      if (input === ADMIN_PIN) {
+        isAdmin = true;
+        document.getElementById('add-btn-container').classList.remove('hidden');
+        renderCards(); 
+        window.closePinModal();
+      } else {
+        alert("핀번호가 일치하지 않습니다.");
+        document.getElementById('pin-input').value = '';
+        document.getElementById('pin-input').focus();
+      }
+    };
+
+    function updateSubjectFilter() {
+      const filterEl = document.getElementById('subject-filter');
+      const uniqueSubjects = [...new Set(sites.map(s => s.subject))].filter(Boolean);
+      
+      const currentSelection = filterEl.value;
+      filterEl.innerHTML = '<option value="">전체 보기</option>';
+      
+      uniqueSubjects.forEach(sub => {
+        const option = document.createElement('option');
+        option.value = sub;
+        option.textContent = sub;
+        filterEl.appendChild(option);
+      });
+      
+      if (uniqueSubjects.includes(currentSelection)) {
+        filterEl.value = currentSelection;
+      } else {
+        currentFilter = '';
+      }
+    }
+
+    onSnapshot(sitesCollection, (snapshot) => {
+      sites = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      document.getElementById('loading').classList.add('hidden');
+      updateSubjectFilter(); 
+      renderCards();
+    }, (error) => {
+      console.error("데이터 로드 실패:", error);
+      document.getElementById('loading').textContent = '데이터를 불러올 수 없습니다. 파이어베이스 규칙 설정을 확인해주세요.';
+    });
+
+    document.getElementById('subject-filter').addEventListener('change', (e) => {
+      currentFilter = e.target.value;
+      renderCards();
+    });
+
+    function renderCards() {
+      const grid = document.getElementById('card-grid');
+      const filteredSites = currentFilter ? sites.filter(s => s.subject === currentFilter) : sites;
+      const existingMap = new Map([...grid.children].map(el => [el.dataset.id, el]));
+      const currentIds = new Set(filteredSites.map(s => s.id));
+
+      existingMap.forEach((el, id) => { if (!currentIds.has(id)) el.remove(); });
+
+      filteredSites.forEach(site => {
+        const existing = existingMap.get(site.id);
+        if (existing) {
+          existing.querySelector('.site-subject').textContent = site.subject;
+          existing.querySelector('.site-name').textContent = site.site_name;
+          existing.style.background = getCardColor(site.subject); 
+          
+          const actionBtns = existing.querySelector('.action-btns');
+          if (isAdmin) {
+            actionBtns.classList.remove('hidden'); actionBtns.classList.add('flex');
+          } else {
+            actionBtns.classList.remove('flex'); actionBtns.classList.add('hidden');
+          }
+        } else {
+          const card = document.createElement('div');
+          card.dataset.id = site.id;
+          card.className = 'glass-card card-hover rounded-2xl p-5 relative transition-all duration-300 cursor-pointer';
+          card.style.background = getCardColor(site.subject); 
+          
+          card.innerHTML = `
+            <div class="action-btns absolute top-2 right-2 gap-2 opacity-0 transition-opacity duration-200 ${isAdmin ? 'flex' : 'hidden'}">
+              <button class="edit-btn w-7 h-7 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold shadow">✎</button>
+              <button class="delete-btn w-7 h-7 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-sm font-bold shadow">×</button>
+            </div>
+            <div class="site-subject text-sm font-semibold text-teal-600 mb-2 uppercase">${site.subject}</div>
+            <h3 class="site-name text-lg font-bold text-teal-800 mb-3">${site.site_name}</h3>
+          `;
+          
+          card.addEventListener('click', () => { window.openInfoModal(site); });
+          
+          card.querySelector('.edit-btn').addEventListener('click', (event) => {
+            event.stopPropagation();
+            editTarget = site;
+            document.getElementById('subject-input').value = site.subject;
+            document.getElementById('name-input').value = site.site_name;
+            document.getElementById('url-input').value = site.url;
+            document.getElementById('poster-input').value = site.poster_url || '';
+            document.getElementById('add-form').dataset.mode = 'edit';
+            document.querySelector('#modal h2').textContent = '사이트 수정';
+            document.getElementById('submit-btn').textContent = '수정하기';
+            window.openModal();
+          });
+
+          card.querySelector('.delete-btn').addEventListener('click', (event) => {
+            event.stopPropagation();
+            deleteTarget = site;
+            document.getElementById('delete-confirm').classList.remove('hidden');
+            document.getElementById('delete-confirm').classList.add('flex');
+          });
+
+          grid.appendChild(card);
+        }
+      });
+      
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+
+      if (filteredSites.length === 0) {
+        grid.innerHTML = '<div class="col-span-full text-center py-12 text-white text-lg">등록된 사이트가 없습니다.</div>';
+      }
+    }
+
+    window.copyInfoUrl = async function() {
+      if (window.currentInfoUrl) {
+        try {
+          await navigator.clipboard.writeText(window.currentInfoUrl);
+          alert("주소가 복사되었습니다!");
+        } catch (err) {
+          const tempInput = document.createElement("input");
+          tempInput.value = window.currentInfoUrl;
+          document.body.appendChild(tempInput);
+          tempInput.select();
+          document.execCommand("copy");
+          document.body.removeChild(tempInput);
+          alert("주소가 복사되었습니다!");
+        }
+      }
+    };
+
+    window.openModal = function() { 
+      document.getElementById('modal').classList.remove('hidden'); 
+      document.getElementById('modal').classList.add('flex'); 
+    };
+    
+    window.closeModal = function() { 
+      document.getElementById('modal').classList.add('hidden'); 
+      document.getElementById('modal').classList.remove('flex'); 
+      document.getElementById('add-form').reset(); 
+      document.getElementById('form-error').classList.add('hidden'); 
+      document.getElementById('add-form').dataset.mode = 'add'; 
+      document.querySelector('#modal h2').textContent = '새로운 사이트 추가'; 
+      document.getElementById('submit-btn').textContent = '추가하기'; 
+      editTarget = null; 
+    };
+
+    document.getElementById('add-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const subject = document.getElementById('subject-input').value.trim();
+      const site_name = document.getElementById('name-input').value.trim();
+      let url = document.getElementById('url-input').value.trim();
+      let poster_url = document.getElementById('poster-input').value.trim();
+      const mode = document.getElementById('add-form').dataset.mode || 'add';
+      
+      if (!subject || !site_name || !url) { 
+        document.getElementById('form-error').textContent = '필수 항목(과목, 사이트명, URL)을 입력해주세요.'; 
+        document.getElementById('form-error').classList.remove('hidden'); 
+        return; 
+      }
+
+      if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+      if (poster_url && !/^https?:\/\//i.test(poster_url)) poster_url = 'https://' + poster_url;
+
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true; btn.textContent = '저장 중...';
+      
+      try {
+        if (mode === 'edit') {
+          const docRef = doc(db, "sites", editTarget.id);
+          await updateDoc(docRef, { subject, site_name, url, poster_url });
+        } else {
+          if (sites.length >= 999) { 
+            document.getElementById('form-error').textContent = '최대 999개까지 추가할 수 있습니다.'; 
+            document.getElementById('form-error').classList.remove('hidden'); 
+            btn.disabled = false; btn.textContent = '추가하기';
+            return; 
+          }
+          await addDoc(sitesCollection, { subject, site_name, url, poster_url, created_at: serverTimestamp() });
+        }
+        window.closeModal();
+      } catch (error) {
+        console.error("데이터 저장 실패:", error);
+        document.getElementById('form-error').textContent = '저장에 실패했습니다. 파이어베이스 데이터베이스 Rules 설정을 확인해주세요!'; 
+        document.getElementById('form-error').classList.remove('hidden');
+      } finally {
+        btn.disabled = false; btn.textContent = mode === 'edit' ? '수정하기' : '추가하기';
+      }
+    });
+
+    window.cancelDelete = function() { 
+      deleteTarget = null; 
+      document.getElementById('delete-confirm').classList.add('hidden'); 
+      document.getElementById('delete-confirm').classList.remove('flex'); 
+    };
+    
+    window.confirmDelete = async function() {
+      if (!deleteTarget) return;
+      const btn = document.getElementById('confirm-delete-btn');
+      btn.disabled = true; btn.textContent = '삭제 중...';
+      try {
+        await deleteDoc(doc(db, "sites", deleteTarget.id));
+      } catch (error) {
+        alert("삭제에 실패했습니다. 데이터베이스 권한 설정을 확인해주세요.");
+      } finally {
+        btn.disabled = false; btn.textContent = '삭제';
+        window.cancelDelete();
+      }
+    };
+  </script>
+ </body>
+</html>
