@@ -1,0 +1,413 @@
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDsilHl95yj_pcIIrTgSGUj1OBiqhL9CAY",
+      authDomain: "site-6ce71.firebaseapp.com",
+      projectId: "site-6ce71",
+      storageBucket: "site-6ce71.firebasestorage.app",
+      messagingSenderId: "446835495885",
+      appId: "1:446835495885:web:a01d4a4c43b117cd71aa84"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const sitesCollection = collection(db, "sites");
+
+    let sites = [];
+    let deleteTarget = null;
+    let currentFilter = '';
+    let editTarget = null;
+    window.currentInfoUrl = ''; 
+    window.currentSiteName = '';
+    
+    const ADMIN_PIN = 'wndms0817';
+    let isAdmin = false;
+
+    const subjectColors = {
+      '국어': 'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%)',
+      '수학': 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
+      '영어': 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
+      '사회': 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)',
+      '과학': 'linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%)',
+      '체육': 'linear-gradient(135deg, #fef08a 0%, #fde047 100%)',
+      '음악': 'linear-gradient(135deg, #fae8ff 0%, #f5d0fe 100%)',
+      '미술': 'linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%)',
+      '도덕': 'linear-gradient(135deg, #ecfeff 0%, #cffafe 100%)',
+      '창체': 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
+      '실과': 'linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%)',
+      '학급방': 'linear-gradient(135deg, #fef4c3 0%, #fde047 100%)'
+    };
+
+    function getCardColor(subject) {
+      return subjectColors[subject] || 'linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.5) 100%)';
+    }
+
+    // ✅ 메인 QR 모달 (엑스박스 방지 적용)
+    window.openMainQRModal = function() {
+      const mainQrImg = document.getElementById('main-qrcode');
+      mainQrImg.classList.add('hidden'); // 일단 이미지 숨김 (엑스박스 방지)
+
+      document.getElementById('main-qr-modal').classList.remove('hidden');
+      document.getElementById('main-qr-modal').classList.add('flex');
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+
+      try {
+        if (typeof QRCode === 'undefined') return;
+        const currentUrl = window.location.href.split('#')[0].split('?')[0];
+        
+        QRCode.toDataURL(currentUrl, { 
+          width: 220, 
+          margin: 2,
+          color: { dark: '#115e59', light: '#ffffff' } 
+        }, function (err, url) {
+          if (!err) {
+            mainQrImg.src = url;
+            mainQrImg.classList.remove('hidden'); // 생성 완료되면 짠! 나타남
+          }
+        });
+      } catch (error) {
+        console.error("메인 QR코드 오류:", error);
+      }
+    };
+
+    window.closeMainQRModal = function() {
+      document.getElementById('main-qr-modal').classList.add('hidden');
+      document.getElementById('main-qr-modal').classList.remove('flex');
+    };
+
+    // ✅ 메인 QR 다운로드 (100% 작동 방식)
+    window.executeMainQRDownload = function() {
+      const img = document.getElementById('main-qrcode');
+      if (!img.src || !img.src.startsWith('data:image')) {
+        alert("아직 다운로드할 QR 코드가 없습니다.");
+        return;
+      }
+      
+      const link = document.createElement('a');
+      link.href = img.src; // fetch 대신 직접 링크 연결
+      link.download = "우리반_웹앱모음_QR.png";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+
+    // ✅ 개별 사이트 모달 (엑스박스 방지 적용)
+    window.openInfoModal = function(site) {
+      document.getElementById('info-subject').textContent = site.subject || '';
+      document.getElementById('info-title').textContent = site.site_name || '';
+      
+      const linkEl = document.getElementById('info-link');
+      linkEl.textContent = site.url || '주소 없음';
+      linkEl.href = site.url || '#';
+      document.getElementById('info-visit-btn').href = site.url || '#';
+      
+      const posterContainer = document.getElementById('info-poster-container');
+      if (site.poster_url && site.poster_url.trim() !== '') {
+        posterContainer.classList.remove('hidden');
+        document.getElementById('info-poster-btn').href = site.poster_url;
+      } else {
+        posterContainer.classList.add('hidden');
+      }
+      
+      window.currentInfoUrl = site.url || '';
+      window.currentSiteName = site.site_name || ''; 
+      
+      const qrImg = document.getElementById('info-qrcode');
+      qrImg.classList.add('hidden'); // 일단 이미지 숨김 (엑스박스 방지)
+      
+      document.getElementById('info-modal').classList.remove('hidden'); 
+      document.getElementById('info-modal').classList.add('flex');
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+
+      try {
+        if (typeof QRCode === 'undefined' || !site.url) return;
+        
+        QRCode.toDataURL(site.url, { 
+          width: 180, 
+          margin: 2, 
+          color: { dark: '#0f766e', light: '#ffffff' } 
+        }, function (err, url) {
+          if (!err) {
+            qrImg.src = url;
+            qrImg.classList.remove('hidden'); // 생성 완료되면 짠! 나타남
+          }
+        });
+      } catch (error) {
+        console.error("웹앱 QR코드 오류:", error);
+      }
+    };
+
+    window.closeInfoModal = function() {
+      document.getElementById('info-modal').classList.add('hidden'); 
+      document.getElementById('info-modal').classList.remove('flex'); 
+    };
+
+    // ✅ 개별 사이트 QR 다운로드 (100% 작동 방식)
+    window.downloadInfoQR = function() {
+      const img = document.getElementById('info-qrcode');
+      if (!img.src || !img.src.startsWith('data:image')) {
+        alert("아직 다운로드할 QR 코드가 없습니다.");
+        return;
+      }
+
+      const link = document.createElement('a');
+      link.href = img.src; // fetch 대신 직접 링크 연결
+      link.download = `${window.currentSiteName || 'site'}_QR.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        window.closeModal();
+        window.closeInfoModal();
+        window.closeMainQRModal();
+        window.closePinModal();
+        window.cancelDelete();
+        currentFilter = ''; 
+        const filterEl = document.getElementById('subject-filter');
+        if(filterEl) filterEl.value = '';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        renderCards();
+      }
+    });
+
+    window.openPinModal = function() {
+      if (isAdmin) {
+        if (confirm("관리자 모드를 종료하시겠습니까?")) {
+          isAdmin = false;
+          document.getElementById('add-btn-container').classList.add('hidden');
+          renderCards(); 
+          alert("관리자 모드가 종료되었습니다.");
+        }
+        return;
+      }
+      document.getElementById('pin-input').value = '';
+      document.getElementById('pin-modal').classList.remove('hidden');
+      document.getElementById('pin-modal').classList.add('flex');
+      setTimeout(() => document.getElementById('pin-input').focus(), 100);
+    };
+
+    window.closePinModal = function() {
+      document.getElementById('pin-modal').classList.add('hidden');
+      document.getElementById('pin-modal').classList.remove('flex');
+    };
+
+    window.submitPin = function() {
+      const input = document.getElementById('pin-input').value;
+      if (input === ADMIN_PIN) {
+        isAdmin = true;
+        document.getElementById('add-btn-container').classList.remove('hidden');
+        renderCards(); 
+        window.closePinModal();
+      } else {
+        alert("핀번호가 일치하지 않습니다.");
+        document.getElementById('pin-input').value = '';
+        document.getElementById('pin-input').focus();
+      }
+    };
+
+    function updateSubjectFilter() {
+      const filterEl = document.getElementById('subject-filter');
+      const uniqueSubjects = [...new Set(sites.map(s => s.subject))].filter(Boolean);
+      
+      const currentSelection = filterEl.value;
+      filterEl.innerHTML = '<option value="">전체 보기</option>';
+      
+      uniqueSubjects.forEach(sub => {
+        const option = document.createElement('option');
+        option.value = sub;
+        option.textContent = sub;
+        filterEl.appendChild(option);
+      });
+      
+      if (uniqueSubjects.includes(currentSelection)) {
+        filterEl.value = currentSelection;
+      } else {
+        currentFilter = '';
+      }
+    }
+
+    onSnapshot(sitesCollection, (snapshot) => {
+      sites = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      document.getElementById('loading').classList.add('hidden');
+      updateSubjectFilter(); 
+      renderCards();
+    }, (error) => {
+      console.error("데이터 로드 실패:", error);
+      document.getElementById('loading').textContent = '데이터를 불러올 수 없습니다. 파이어베이스 규칙 설정을 확인해주세요.';
+    });
+
+    document.getElementById('subject-filter').addEventListener('change', (e) => {
+      currentFilter = e.target.value;
+      renderCards();
+    });
+
+    function renderCards() {
+      const grid = document.getElementById('card-grid');
+      const filteredSites = currentFilter ? sites.filter(s => s.subject === currentFilter) : sites;
+      const existingMap = new Map([...grid.children].map(el => [el.dataset.id, el]));
+      const currentIds = new Set(filteredSites.map(s => s.id));
+
+      existingMap.forEach((el, id) => { if (!currentIds.has(id)) el.remove(); });
+
+      filteredSites.forEach(site => {
+        const existing = existingMap.get(site.id);
+        if (existing) {
+          existing.querySelector('.site-subject').textContent = site.subject;
+          existing.querySelector('.site-name').textContent = site.site_name;
+          existing.style.background = getCardColor(site.subject); 
+          
+          const actionBtns = existing.querySelector('.action-btns');
+          if (isAdmin) {
+            actionBtns.classList.remove('hidden'); actionBtns.classList.add('flex');
+          } else {
+            actionBtns.classList.remove('flex'); actionBtns.classList.add('hidden');
+          }
+        } else {
+          const card = document.createElement('div');
+          card.dataset.id = site.id;
+          card.className = 'glass-card card-hover rounded-2xl p-5 relative transition-all duration-300 cursor-pointer';
+          card.style.background = getCardColor(site.subject); 
+          
+          card.innerHTML = `
+            <div class="action-btns absolute top-2 right-2 gap-2 opacity-0 transition-opacity duration-200 ${isAdmin ? 'flex' : 'hidden'}">
+              <button class="edit-btn w-7 h-7 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold shadow">✎</button>
+              <button class="delete-btn w-7 h-7 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-sm font-bold shadow">×</button>
+            </div>
+            <div class="site-subject text-sm font-semibold text-teal-600 mb-2 uppercase">${site.subject}</div>
+            <h3 class="site-name text-lg font-bold text-teal-800 mb-3">${site.site_name}</h3>
+          `;
+          
+          card.addEventListener('click', () => { window.openInfoModal(site); });
+          
+          card.querySelector('.edit-btn').addEventListener('click', (event) => {
+            event.stopPropagation();
+            editTarget = site;
+            document.getElementById('subject-input').value = site.subject;
+            document.getElementById('name-input').value = site.site_name;
+            document.getElementById('url-input').value = site.url;
+            document.getElementById('poster-input').value = site.poster_url || '';
+            document.getElementById('add-form').dataset.mode = 'edit';
+            document.querySelector('#modal h2').textContent = '사이트 수정';
+            document.getElementById('submit-btn').textContent = '수정하기';
+            window.openModal();
+          });
+
+          card.querySelector('.delete-btn').addEventListener('click', (event) => {
+            event.stopPropagation();
+            deleteTarget = site;
+            document.getElementById('delete-confirm').classList.remove('hidden');
+            document.getElementById('delete-confirm').classList.add('flex');
+          });
+
+          grid.appendChild(card);
+        }
+      });
+      
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+
+      if (filteredSites.length === 0) {
+        grid.innerHTML = '<div class="col-span-full text-center py-12 text-white text-lg">등록된 사이트가 없습니다.</div>';
+      }
+    }
+
+    window.copyInfoUrl = async function() {
+      if (window.currentInfoUrl) {
+        try {
+          await navigator.clipboard.writeText(window.currentInfoUrl);
+          alert("주소가 복사되었습니다!");
+        } catch (err) {
+          const tempInput = document.createElement("input");
+          tempInput.value = window.currentInfoUrl;
+          document.body.appendChild(tempInput);
+          tempInput.select();
+          document.execCommand("copy");
+          document.body.removeChild(tempInput);
+          alert("주소가 복사되었습니다!");
+        }
+      }
+    };
+
+    window.openModal = function() { 
+      document.getElementById('modal').classList.remove('hidden'); 
+      document.getElementById('modal').classList.add('flex'); 
+    };
+    
+    window.closeModal = function() { 
+      document.getElementById('modal').classList.add('hidden'); 
+      document.getElementById('modal').classList.remove('flex'); 
+      document.getElementById('add-form').reset(); 
+      document.getElementById('form-error').classList.add('hidden'); 
+      document.getElementById('add-form').dataset.mode = 'add'; 
+      document.querySelector('#modal h2').textContent = '새로운 사이트 추가'; 
+      document.getElementById('submit-btn').textContent = '추가하기'; 
+      editTarget = null; 
+    };
+
+    document.getElementById('add-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const subject = document.getElementById('subject-input').value.trim();
+      const site_name = document.getElementById('name-input').value.trim();
+      let url = document.getElementById('url-input').value.trim();
+      let poster_url = document.getElementById('poster-input').value.trim();
+      const mode = document.getElementById('add-form').dataset.mode || 'add';
+      
+      if (!subject || !site_name || !url) { 
+        document.getElementById('form-error').textContent = '필수 항목(과목, 사이트명, URL)을 입력해주세요.'; 
+        document.getElementById('form-error').classList.remove('hidden'); 
+        return; 
+      }
+
+      if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+      if (poster_url && !/^https?:\/\//i.test(poster_url)) poster_url = 'https://' + poster_url;
+
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true; btn.textContent = '저장 중...';
+      
+      try {
+        if (mode === 'edit') {
+          const docRef = doc(db, "sites", editTarget.id);
+          await updateDoc(docRef, { subject, site_name, url, poster_url });
+        } else {
+          if (sites.length >= 999) { 
+            document.getElementById('form-error').textContent = '최대 999개까지 추가할 수 있습니다.'; 
+            document.getElementById('form-error').classList.remove('hidden'); 
+            btn.disabled = false; btn.textContent = '추가하기';
+            return; 
+          }
+          await addDoc(sitesCollection, { subject, site_name, url, poster_url, created_at: serverTimestamp() });
+        }
+        window.closeModal();
+      } catch (error) {
+        console.error("데이터 저장 실패:", error);
+        document.getElementById('form-error').textContent = '저장에 실패했습니다. 파이어베이스 데이터베이스 Rules 설정을 확인해주세요!'; 
+        document.getElementById('form-error').classList.remove('hidden');
+      } finally {
+        btn.disabled = false; btn.textContent = mode === 'edit' ? '수정하기' : '추가하기';
+      }
+    });
+
+    window.cancelDelete = function() { 
+      deleteTarget = null; 
+      document.getElementById('delete-confirm').classList.add('hidden'); 
+      document.getElementById('delete-confirm').classList.remove('flex'); 
+    };
+    
+    window.confirmDelete = async function() {
+      if (!deleteTarget) return;
+      const btn = document.getElementById('confirm-delete-btn');
+      btn.disabled = true; btn.textContent = '삭제 중...';
+      try {
+        await deleteDoc(doc(db, "sites", deleteTarget.id));
+      } catch (error) {
+        alert("삭제에 실패했습니다. 데이터베이스 권한 설정을 확인해주세요.");
+      } finally {
+        btn.disabled = false; btn.textContent = '삭제';
+        window.cancelDelete();
+      }
+    };
+  </script>
